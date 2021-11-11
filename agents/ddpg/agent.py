@@ -1,5 +1,4 @@
 import time
-import warnings
 from copy import deepcopy
 from utils.logger import Logger
 from utils.summary import EvaluationMetrics
@@ -8,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from agents.base import Agent
 from agents.ddpg.buffer import ReplayBuffer
 from agents.ddpg.model import MLPActor, MLPCritic
 
@@ -33,18 +33,9 @@ class OrnsteinUhlenbeck:
         self.eps = torch.zeros_like(self._mu)
 
 
-class DDPG:
-    def __init__(self, args=None):
-        self.args = args
-
-        # initialize logger
-        self.logger = Logger('DDPG', args)
-        self.logger.log("Initialized DDPG agent for {}".format(args.env))
-
-        # initialize environment
-        self.env = getattr(envs, args.env)(args=args)
-        self.state = self.env.reset()
-
+class DDPG(Agent):
+    def __init__(self, args=None, name='DDPG'):
+        super().__init__(args=args, name=name)
         # initialize models
         self.model = nn.ModuleDict({
             'actor': MLPActor(
@@ -138,52 +129,50 @@ class DDPG:
             self.info.update('Scores/Train', epinfo['profit'])
 
         # check if warming up
-        if self.step < self.args.warmup:
-            return
-
-        # sample from replay buffer
-        s, a, r, d, s_next = tuple(
-            map(lambda x: torch.FloatTensor(x).to(self.args.device), 
-                self.buffer.sample(self.args.batch_size))
-        )
-        r = r.unsqueeze(1)
-        d = d.unsqueeze(1)
-
-        # update critic
-        with torch.no_grad():
-            a_next = torch.tanh(self.target.actor(s_next))
-            q_next = self.target.critic(s_next, a_next)
-        q_trg = r + self.args.gamma * q_next * (1 - d)
-        loss_critic = (q_trg - self.model.critic(s, a)).pow(2).mean()
-        self.info.update('Loss/Critic', loss_critic.item())
-
-        self.critic_optim.zero_grad()
-        loss_critic.backward()
-        if self.args.grad_clip is not None:
-            nn.utils.clip_grad_norm_(
-                self.model.critic.parameters(),
-                self.args.grad_clip
+        if self.step >= self.args.warmup:
+            # sample from replay buffer
+            s, a, r, d, s_next = tuple(
+                map(lambda x: torch.FloatTensor(x).to(self.args.device), 
+                    self.buffer.sample(self.args.batch_size))
             )
-        self.critic_optim.step()
+            r = r.unsqueeze(1)
+            d = d.unsqueeze(1)
 
-        # update actor
-        a = torch.tanh(self.model.actor(s))
-        q_val = self.model.critic(s, a).mean()
-        loss_actor = -q_val
-        self.info.update('Values/QValue', q_val.item())
-        self.info.update('Loss/Actor', loss_actor.item())
+            # update critic
+            with torch.no_grad():
+                a_next = torch.tanh(self.target.actor(s_next))
+                q_next = self.target.critic(s_next, a_next)
+            q_trg = r + self.args.gamma * q_next * (1 - d)
+            loss_critic = (q_trg - self.model.critic(s, a)).pow(2).mean()
+            self.info.update('Loss/Critic', loss_critic.item())
 
-        self.actor_optim.zero_grad()
-        loss_actor.backward()
-        if self.args.grad_clip is not None:
-            nn.utils.clip_grad_norm_(
-                self.model.actor.parameters(),
-                self.args.grad_clip
-            )
-        self.actor_optim.step()
+            self.critic_optim.zero_grad()
+            loss_critic.backward()
+            if self.args.grad_clip is not None:
+                nn.utils.clip_grad_norm_(
+                    self.model.critic.parameters(),
+                    self.args.grad_clip
+                )
+            self.critic_optim.step()
 
-        # update target network
-        self.update_target()
+            # update actor
+            a = torch.tanh(self.model.actor(s))
+            q_val = self.model.critic(s, a).mean()
+            loss_actor = -q_val
+            self.info.update('Values/QValue', q_val.item())
+            self.info.update('Loss/Actor', loss_actor.item())
+
+            self.actor_optim.zero_grad()
+            loss_actor.backward()
+            if self.args.grad_clip is not None:
+                nn.utils.clip_grad_norm_(
+                    self.model.actor.parameters(),
+                    self.args.grad_clip
+                )
+            self.actor_optim.step()
+
+            # update target network
+            self.update_target()
 
         # log training statistics
         elapsed = time.time() - st

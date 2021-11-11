@@ -9,6 +9,13 @@ class DJIA(Environment):
     def __init__(self, args=None):
         self.args = args
 
+        # check dates
+        start_train = datetime.strptime(args.start_train, "%Y-%M-%d")
+        start_val = datetime.strptime(args.start_val, "%Y-%M-%d")
+        start_test = datetime.strptime(args.start_test, "%Y-%M-%d")
+        assert start_train < start_val, "the start of training must be earlier than the validation"
+        assert start_val < start_test, "the start of validation must be earlier than the test"
+
         # predefined constants
         # modified from https://github.com/AI4Finance-Foundation/FinRL
         self._balance_scale = 1e-4
@@ -39,17 +46,17 @@ class DJIA(Environment):
         _ = self.reset()
 
     def train(self):
-        start = self.args.start_train
-        end = self.args.start_val - timedelta(days=1)
-        self.prices = self.all_prices[start:end]
+        start = datetime.strptime(self.args.start_train, "%Y-%M-%d")
+        end = datetime.strptime(self.args.start_val, "%Y-%M-%d")
+        self.prices = self.all_prices[start:end - timedelta(days=1)]
 
     def eval(self):
-        start = self.args.start_val
-        end = self.args.start_test - timedelta(days=1)
-        self.prices = self.all_prices[start:end]
+        start = datetime.strptime(self.args.start_val, "%Y-%M-%d")
+        end = datetime.strptime(self.args.start_test, "%Y-%M-%d")
+        self.prices = self.all_prices[start:end - timedelta(days=1)]
 
     def test(self):
-        start = self.args.start_test
+        start = datetime.strptime(self.args.start_test, "%Y-%M-%d")
         self.prices = self.all_prices[start:]
 
     @property
