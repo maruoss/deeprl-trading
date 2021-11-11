@@ -2,6 +2,17 @@ import argparse
 import random
 import numpy as np
 import torch
+from datetime import datetime
+
+
+def train(args):
+    from agents.ddpg.agent import DDPG
+
+    agent = DDPG(args)
+    for idx in range(args.train_iter):
+        if idx % args.eval_every == 0:
+            agent.eval()
+        agent.train()
 
 
 def test_logger(args):
@@ -38,8 +49,8 @@ if __name__ == '__main__':
 
     log = parser.add_argument_group("logging options")
     log.add_argument("--log_level", type=int, default=20)
-    log.add_argument("--log_step", type=int, default=100)
-    log.add_argument("--save_step", type=int, default=100)
+    log.add_argument("--log_step", type=int, default=10000)
+    log.add_argument("--save_step", type=int, default=100000)
     log.add_argument("--debug", "-d", action="store_true")
     log.add_argument("--quiet", "-q", action="store_true")
 
@@ -48,7 +59,26 @@ if __name__ == '__main__':
     dirs.add_argument("--data_dir", type=str, default='data')
     dirs.add_argument("--checkpoint", type=str, default=None)
 
-    training = parser.add_argument_group("training options")
+    env = parser.add_argument_group("environment configurations")
+    env.add_argument("--env", type=str, default='djia')
+    env.add_argument("--start_train", type=str, default="2009-01-01")
+    env.add_argument("--start_val", type=str, default="2018-12-01")
+    env.add_argument("--start_test", type=str, default="2019-12-01")
+    env.add_argument("--initial_balance", type=float, default=1e6)
+    env.add_argument("--transaction_cost", type=float, default=1e-3)
+
+    training = parser.add_argument_group("training configurations")
+    training.add_argument("--train_iter", type=int, default=1000000)
+    training.add_argument("--eval_every", type=int, default=10000)
+    training.add_argument("--buffer_size", type=int, default=50000)
+    training.add_argument("--warmup", type=int, default=1000)
+    training.add_argument("--batch_size", type=int, default=128)
+    training.add_argument("--lr_actor", type=float, default=1e-4)
+    training.add_argument("--lr_critic", type=float, default=1e-3)
+    training.add_argument("--grad_clip", type=float, default=0.01)
+    training.add_argument("--sigma", type=float, default=0.1)
+    training.add_argument("--gamma", type=float, default=0.99)
+    training.add_argument("--polyak", type=float, default=0.99)
 
     args = parser.parse_args()
     # set random seed
@@ -69,5 +99,12 @@ if __name__ == '__main__':
         args.log_level = 1
     elif args.quiet:
         args.log_level = 30
+
+    # check dates
+    args.start_train = datetime.strptime(args.start_train, "%Y-%M-%d")
+    args.start_val = datetime.strptime(args.start_val, "%Y-%M-%d")
+    args.start_test = datetime.strptime(args.start_test, "%Y-%M-%d")
+    assert args.start_train < args.start_val, "the start of training must be earlier than the validation"
+    assert args.start_val < args.start_test, "the start of validation must be earlier than the test"
 
     globals()[args.mode](args)

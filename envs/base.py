@@ -5,13 +5,13 @@ class Environment(ABC):
     @property
     @abstractmethod
     def observation_space(self):
-        """provide the shape and lower/upper bounds of observations"""
+        """provide the shape of observations"""
         pass
 
     @property
     @abstractmethod
     def action_space(self):
-        """provide the shape and lower/upper bounds of actions"""
+        """provide the shape of actions"""
         pass
 
     @abstractmethod
@@ -20,4 +20,16 @@ class Environment(ABC):
 
     @abstractmethod
     def step(self, action):
+        pass
+
+    @abstractmethod
+    def train(self):
+        pass
+
+    @abstractmethod
+    def eval(self):
+        pass
+
+    @abstractmethod
+    def test(self):
         pass

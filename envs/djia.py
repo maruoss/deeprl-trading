@@ -6,15 +6,14 @@ from datetime import datetime, timedelta
 
 
 class DJIA(Environment):
-    def __init__(self, args=None, split="train"):
-        assert split in ['train', 'val', 'test']
+    def __init__(self, args=None):
         self.args = args
 
         # predefined constants
-        # referred to https://github.com/AI4Finance-Foundation/FinRL
-        self._balance_scale = 2 ** -12
-        self._price_scale = 2 ** -6
-        self._reward_scale = 2 ** -11
+        # modified from https://github.com/AI4Finance-Foundation/FinRL
+        self._balance_scale = 1e-4
+        self._price_scale = 1e-2
+        self._reward_scale = 1e-4
         self._max_stocks = 100
         self._min_action = int(0.1 * self._max_stocks)
 
@@ -31,42 +30,36 @@ class DJIA(Environment):
         prices.index = pd.to_datetime(prices.index)
         prices.columns = tickers
         prices.sort_index(axis=0, inplace=True)
+        self.all_prices = prices
 
-        # slice dates
-        start_train = datetime.strptime(args.start_train, "%Y-%M-%d")
-        start_val = datetime.strptime(args.start_val, "%Y-%M-%d")
-        start_test = datetime.strptime(args.start_test, "%Y-%M-%d")
-        assert start_train < start_val, "the start of training must be earlier than the validation"
-        assert start_val < start_test, "the start of validation must be earlier than the test"
-
-        if split == 'train':
-            self.prices = prices[start_train:start_val - timedelta(days=1)]
-        elif split == 'val':
-            self.prices = prices[start_val:start_test - timedelta(days=1)]
-        else:
-            self.prices = prices[start_test:]
+        # default to training
+        self.train()
 
         # initialize environment
         _ = self.reset()
 
+    def train(self):
+        start = self.args.start_train
+        end = self.args.start_val - timedelta(days=1)
+        self.prices = self.all_prices[start:end]
+
+    def eval(self):
+        start = self.args.start_val
+        end = self.args.start_test - timedelta(days=1)
+        self.prices = self.all_prices[start:end]
+
+    def test(self):
+        start = self.args.start_test
+        self.prices = self.all_prices[start:]
+
     @property
     def observation_space(self):
-        # s = [p, h, b]
-        p = np.zeros((2, 30))
-        p[1] = np.inf
-        h = np.zeros((2, 30))
-        h[1] = np.inf
-        b = np.zeros((2, 1))
-        b[1] = np.inf
-        return np.concatenate([p, h, b], axis=1)
+        return (61,)
 
     @property
     def action_space(self):
-        # actions constrained to [-1.0, 1.0]
-        acs = np.zeros((2, 30))
-        acs[0] = -1.0
-        acs[1] = 1.0
-        return acs
+        # actions are assumed to be constrained to [-1.0, 1.0]
+        return (30,)
 
     def reset(self):
         self.head = 0
@@ -112,8 +105,9 @@ class DJIA(Environment):
         # check if at terminal state
         if self.head == len(self.prices) - 1:
             reward = self.total_reward
+            profit = self.total_asset / self.args.initial_balance - 1.0
             state = self.reset()
-            return state, reward, True
+            return state, reward, True, {'profit': profit}
 
         # create state vector
         p = prices * self._price_scale
@@ -121,4 +115,5 @@ class DJIA(Environment):
         b = max(self.balance, 1e4)  # cutoff value defined in FinRL
         b *= np.ones(1) * self._balance_scale
         state = np.concatenate([p, h, b], axis=0)
-        return state, reward, False
+        return state, reward, False, {}
+
