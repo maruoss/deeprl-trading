@@ -88,7 +88,7 @@ if __name__ == '__main__':
     training.add_argument("--agent", type=str.lower, default='ddpg')
     training.add_argument("--train_iter", type=int, default=10000000)
     training.add_argument("--eval_every", type=int, default=10000)
-    training.add_argument("--update_every", type=int, default=128 * 8)
+    training.add_argument("--update_every", type=int, default=1024)
     training.add_argument("--update_epoch", type=int, default=4)
     training.add_argument("--buffer_size", type=int, default=50000)
     training.add_argument("--warmup", type=int, default=1000)
