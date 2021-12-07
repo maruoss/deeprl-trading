@@ -17,7 +17,7 @@ class DJIA(Environment):
         assert start_val < start_test, "the start of validation must be earlier than the test"
 
         # predefined constants
-        # modified from https://github.com/AI4Finance-Foundation/FinRL
+        # modified from https://github.com/AI4Finance-Foundation/FinRL #TODO: did not find scaling done on each b, p, r
         self._balance_scale = 1e-4
         self._price_scale = 1e-2
         self._reward_scale = 1e-4
@@ -107,11 +107,11 @@ class DJIA(Environment):
         total_asset = self.balance + (prices * self.holdings).sum()
         reward = (total_asset - self.total_asset) * self._reward_scale
         self.total_asset = total_asset
-        self.total_reward = self.args.gamma * self.total_reward + reward
+        self.total_reward = self.args.gamma * self.total_reward + reward #TODO: 1a) why do we discount total_reward here?
 
         # check if at terminal state
         if self.head == len(self.prices) - 1:
-            reward = self.total_reward
+            reward = self.total_reward #TODO: 1b) why put out total_reward as reward in terminal state?
             profit = self.total_asset / self.args.initial_balance - 1.0
             state = self.reset()
             return state, reward, True, {'profit': profit}

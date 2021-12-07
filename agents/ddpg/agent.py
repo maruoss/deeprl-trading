@@ -19,13 +19,13 @@ class OrnsteinUhlenbeck:
         self._theta = theta
         self._dt = dt
 
-        self.eps = None
+        self.eps = None # Not needed, will be zeros when calling self.reset() below
         self.reset()
 
     def sample(self):
         eps = self.eps
         eps += self._theta * (self._mu - self.eps) * self._dt
-        eps += self._sigma * np.sqrt(self._dt) * torch.randn_like(self._mu)
+        eps += self._sigma * np.sqrt(self._dt) * torch.randn_like(self._mu) #TODO: why not e.g. dt=1? like in https://towardsdatascience.com/deep-deterministic-policy-gradients-explained-2d94655a9b7b
         self.eps = eps
         return eps
 
@@ -48,7 +48,7 @@ class DDPG(Agent):
             )
         })
         self.target = deepcopy(self.model)
-        self.model.to(args.device)
+        self.model.to(args.device) #TODO: how can args be called withouh self. here?
         self.target.to(args.device)
 
         # initialize random process for action noise
@@ -88,7 +88,7 @@ class DDPG(Agent):
         self.step = 0
 
     def update_target(self):
-        tau = self.args.polyak
+        tau = self.args.polyak #TODO: here args with self.?
         # update actor params
         actor = self.model.actor.parameters()
         target_actor = self.target.actor.parameters()
@@ -146,7 +146,7 @@ class DDPG(Agent):
             loss_critic = (q_trg - self.model.critic(s, a)).pow(2).mean()
             self.info.update('Loss/Critic', loss_critic.item())
 
-            self.critic_optim.zero_grad()
+            self.critic_optim.zero_grad() #TODO: optim.zero_grad before loss computation in torch?
             loss_critic.backward()
             if self.args.grad_clip is not None:
                 nn.utils.clip_grad_norm_(

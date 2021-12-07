@@ -14,7 +14,7 @@ class MLPActor(nn.Module):
         )
         self.ac_head = nn.Linear(300, np.prod(ac_space))
         self.ac_head.weight.data.uniform_(-3e-3, 3e-3)
-        self.ac_head.bias.data.uniform_(-3e-3, 3e-3)
+        self.ac_head.bias.data.uniform_(-3e-3, 3e-3) #TODO: fan-in initialization for other layers?
         self.ac_space = ac_space
 
 
@@ -30,7 +30,7 @@ class MLPCritic(nn.Module):
     def __init__(self, ob_space, ac_space):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Linear(np.prod(ob_space) + np.prod(ac_space), 400),
+            nn.Linear(np.prod(ob_space) + np.prod(ac_space), 400), #TODO: Action only come in, in the second layer?
             nn.ReLU(),
             nn.Linear(400, 300),
             nn.ReLU(),
