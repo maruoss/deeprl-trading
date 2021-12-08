@@ -14,7 +14,7 @@ class MLPActor(nn.Module):
         )
         self.ac_head = nn.Linear(300, np.prod(ac_space))
         self.ac_head.weight.data.uniform_(-3e-3, 3e-3)
-        self.ac_head.bias.data.uniform_(-3e-3, 3e-3) #TODO: fan-in initialization for other layers?
+        self.ac_head.bias.data.uniform_(-3e-3, 3e-3)
         self.ac_space = ac_space
 
 

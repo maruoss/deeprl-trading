@@ -13,7 +13,7 @@ from agents.ddpg.model import MLPActor, MLPCritic
 
 
 class OrnsteinUhlenbeck:
-    def __init__(self, action_space, sigma=0.1, theta=0.15, dt=1e-2, device=None):
+    def __init__(self, action_space, sigma=0.1, theta=0.15, dt=1, device=None):
         self._mu = torch.zeros(*action_space, device=device)
         self._sigma = torch.ones(*action_space, device=device) * sigma
         self._theta = theta
@@ -48,7 +48,7 @@ class DDPG(Agent):
             )
         })
         self.target = deepcopy(self.model)
-        self.model.to(args.device) #TODO: how can args be called withouh self. here?
+        self.model.to(args.device)
         self.target.to(args.device)
 
         # initialize random process for action noise
@@ -88,7 +88,7 @@ class DDPG(Agent):
         self.step = 0
 
     def update_target(self):
-        tau = self.args.polyak #TODO: here args with self.?
+        tau = self.args.polyak
         # update actor params
         actor = self.model.actor.parameters()
         target_actor = self.target.actor.parameters()
@@ -146,7 +146,7 @@ class DDPG(Agent):
             loss_critic = (q_trg - self.model.critic(s, a)).pow(2).mean()
             self.info.update('Loss/Critic', loss_critic.item())
 
-            self.critic_optim.zero_grad() #TODO: optim.zero_grad before loss computation in torch?
+            self.critic_optim.zero_grad()
             loss_critic.backward()
             if self.args.grad_clip is not None:
                 nn.utils.clip_grad_norm_(
