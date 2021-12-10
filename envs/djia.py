@@ -149,6 +149,9 @@ class DJIANew(DJIA):
         return pct_change.dropna().values.T
 
     def step(self, action):
+        # clip action to [-10.0, 10.0]
+        action = np.clip(action, -10.0, 10.0)
+
         # update prices and holdings
         self.head += 1
         if self.head >= len(self.prices):
