@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
+from collections import deque
 
 
 class DJIA(Environment):
@@ -133,7 +134,7 @@ class DJIANew(DJIA):
 
     @property
     def observation_space(self):
-        return (30, 25)
+        return (61, 25)
 
     @property
     def action_space(self):
@@ -143,10 +144,15 @@ class DJIANew(DJIA):
         self.head = 26
         self.balance = self.args.initial_balance
         self.holdings = np.zeros(30)
+        self.weights = np.zeros((25, 31))
         self.total_asset = self.balance
 
         pct_change = self.prices.iloc[self.head - 26:self.head].pct_change()
-        return pct_change.dropna().values.T
+        state = np.concatenate([
+            pct_change.dropna().values.T,
+            self.weights.T,
+        ])
+        return state
 
     def step(self, action):
         # clip action to [-10.0, 10.0]
@@ -189,6 +195,17 @@ class DJIANew(DJIA):
             return state, reward, True, {'profit': profit}
 
         # create state vector
+        weights = np.concatenate([
+            np.array([self.balance]),
+            prices * self.holdings
+        ]) / self.total_asset
+        self.weights = np.concatenate([
+            self.weights[1:],
+            weights.reshape(1, -1)
+        ])
         pct_change = self.prices.iloc[self.head - 26:self.head].pct_change()
-        state = pct_change.dropna().values.T
+        state = np.concatenate([
+            pct_change.dropna().values.T,
+            self.weights.T,
+        ])
         return state, reward, False, {}
