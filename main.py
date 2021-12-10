@@ -86,13 +86,13 @@ if __name__ == '__main__':
 
     training = parser.add_argument_group("training configurations")
     training.add_argument("--agent", type=str.lower, default='ddpg')
-    training.add_argument("--train_iter", type=int, default=10000000)
+    training.add_argument("--train_iter", type=int, default=100000000)
     training.add_argument("--eval_every", type=int, default=10000)
-    training.add_argument("--update_every", type=int, default=1024)
+    training.add_argument("--update_every", type=int, default=128)
     training.add_argument("--update_epoch", type=int, default=4)
     training.add_argument("--buffer_size", type=int, default=50000)
     training.add_argument("--warmup", type=int, default=1000)
-    training.add_argument("--batch_size", type=int, default=128)
+    training.add_argument("--batch_size", type=int, default=32)
 
     training.add_argument("--lr_critic", type=float, default=1e-3)
     training.add_argument('-lr', "--lr_actor", type=float, default=1e-4)
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     training.add_argument("--lambda", type=float, default=0.95)
     training.add_argument("--polyak", type=float, default=0.99)
     training.add_argument("--cr_coef", type=float, default=0.5)
-    training.add_argument("--ent_coef", type=float, default=1e-3)
+    training.add_argument("--ent_coef", type=float, default=0.0)
     training.add_argument("--cliprange", type=float, default=0.1)
 
     args = parser.parse_args()

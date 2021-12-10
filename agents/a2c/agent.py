@@ -1,5 +1,4 @@
 import time
-from utils.logger import Logger
 from utils.summary import EvaluationMetrics
 import envs
 import numpy as np
@@ -97,7 +96,7 @@ class A2C(Agent):
         self.buffer['nlls'].append(nll)
         self.buffer['dones'].append(np.asarray([self.done], dtype=float))
 
-        a = np.tanh(a)
+        # a = np.tanh(a)
         self.state, reward, self.done, epinfo = self.env.step(a)
         self.buffer['rewards'].append(reward)
         self.info.update('Values/Reward', reward)
@@ -186,7 +185,7 @@ class A2C(Agent):
         while not done:
             state = torch.FloatTensor(state).to(self.args.device)
             mu, _, _ = self.model(state.unsqueeze(0)) 
-            action = torch.tanh(mu)
+            action = mu  #torch.tanh(mu)
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])

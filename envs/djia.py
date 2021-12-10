@@ -124,3 +124,68 @@ class DJIA(Environment):
         state = np.concatenate([p, h, b], axis=0)
         return state, reward, False, {}
 
+
+class DJIANew(DJIA):
+    def __init__(self, args=None):
+        super().__init__(args)
+        # predefined constants
+        self._reward_scale = 100.0
+
+    @property
+    def observation_space(self):
+        return (30, 25)
+
+    @property
+    def action_space(self):
+        return (31,)
+
+    def reset(self):
+        self.head = 26
+        self.balance = self.args.initial_balance
+        self.holdings = np.zeros(30)
+        self.total_asset = self.balance
+
+        pct_change = self.prices.iloc[self.head - 26:self.head].pct_change()
+        return pct_change.dropna().values.T
+
+    def step(self, action):
+        # update prices and holdings
+        self.head += 1
+        if self.head >= len(self.prices):
+            raise KeyError("environment must be reset")
+
+        prev_prices = self.prices.iloc[self.head - 1].values
+        exp = np.exp(action - action.max())
+        weights = (exp / exp.sum())[1:]
+        holdings = self.total_asset * weights // prev_prices
+
+        prices = self.prices.iloc[self.head].values
+        tc = self.args.transaction_cost
+        # sells
+        for idx in np.where(holdings < self.holdings)[0]:
+            shares = self.holdings[idx] - holdings[idx]
+            self.holdings[idx] -= shares
+            self.balance += prices[idx] * shares * (1 - tc)
+        # buys
+        for idx in np.where(holdings > self.holdings)[0]:
+            shares = holdings[idx] - self.holdings[idx]
+            shares = min(shares, self.balance // (prices[idx] * (1 + tc)))
+            self.holdings[idx] += shares
+            self.balance -= prices[idx] * shares * (1 + tc)
+
+        # calculate asset gains
+        total_asset = self.balance + (prices * self.holdings).sum()
+        reward = (total_asset - self.total_asset) / (self.total_asset + 1e-8)
+        reward *= self._reward_scale
+        self.total_asset = total_asset
+
+        # check if at terminal state
+        if self.head == len(self.prices) - 1:
+            profit = self.total_asset / self.args.initial_balance - 1.0
+            state = self.reset()
+            return state, reward, True, {'profit': profit}
+
+        # create state vector
+        pct_change = self.prices.iloc[self.head - 26:self.head].pct_change()
+        state = pct_change.dropna().values.T
+        return state, reward, False, {}

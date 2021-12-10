@@ -1,6 +1,5 @@
 import time
 from copy import deepcopy
-from utils.logger import Logger
 from utils.summary import EvaluationMetrics
 import envs
 import numpy as np
@@ -116,7 +115,7 @@ class DDPG(Agent):
         self.state = torch.FloatTensor(self.state).to(self.args.device)
         with torch.no_grad():
             action = self.model.actor(self.state.unsqueeze(0))
-            action = torch.tanh(action + self.action_noise.sample())
+            action += self.action_noise.sample()
         action = action.squeeze(0).cpu().numpy()
         state, reward, done, epinfo = self.env.step(action)
 
@@ -140,7 +139,7 @@ class DDPG(Agent):
 
             # update critic
             with torch.no_grad():
-                a_next = torch.tanh(self.target.actor(s_next))
+                a_next = self.target.actor(s_next)
                 q_next = self.target.critic(s_next, a_next)
             q_trg = r + self.args.gamma * q_next * (1 - d)
             loss_critic = (q_trg - self.model.critic(s, a)).pow(2).mean()
@@ -156,7 +155,7 @@ class DDPG(Agent):
             self.critic_optim.step()
 
             # update actor
-            a = torch.tanh(self.model.actor(s))
+            a = self.model.actor(s)
             q_val = self.model.critic(s, a).mean()
             loss_actor = -q_val
             self.info.update('Values/QValue', q_val.item())
@@ -195,7 +194,7 @@ class DDPG(Agent):
         done = False
         while not done:
             state = torch.FloatTensor(state).to(self.args.device)
-            action = torch.tanh(self.model.actor(state.unsqueeze(0)))
+            action = self.model.actor(state.unsqueeze(0))
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])
