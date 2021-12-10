@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from collections import deque
 
 
 class DJIA(Environment):
@@ -130,6 +129,7 @@ class DJIANew(DJIA):
     def __init__(self, args=None):
         super().__init__(args)
         # predefined constants
+        self._action_scale = 10.0
         self._reward_scale = 100.0
 
     @property
@@ -155,8 +155,8 @@ class DJIANew(DJIA):
         return state
 
     def step(self, action):
-        # clip action to [-10.0, 10.0]
-        action = np.clip(action, -10.0, 10.0)
+        # assume that action is clipped to [-1.0, 1.0]
+        action *= self._action_scale
 
         # update prices and holdings
         self.head += 1
