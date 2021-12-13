@@ -13,7 +13,7 @@ from agents.ddpg.model import MLPActor, MLPCritic
 
 
 class OrnsteinUhlenbeck:
-    def __init__(self, action_space, sigma=0.1, theta=0.15, dt=1, device=None):
+    def __init__(self, action_space, sigma=0.1, theta=0.15, dt=1e-2, device=None): #sigma is overridden in main argparser for training!
         self._mu = torch.zeros(*action_space, device=device)
         self._sigma = torch.ones(*action_space, device=device) * sigma
         self._theta = theta

@@ -107,11 +107,11 @@ class DJIA(Environment):
         total_asset = self.balance + (prices * self.holdings).sum()
         reward = (total_asset - self.total_asset) * self._reward_scale
         self.total_asset = total_asset
-        self.total_reward = self.args.gamma * self.total_reward + reward #TODO: 1a) why do we discount total_reward here?
+        # self.total_reward = self.args.gamma * self.total_reward + reward #TODO: 1a) why do we discount total_reward here?
 
         # check if at terminal state
         if self.head == len(self.prices) - 1:
-            reward = self.total_reward #TODO: 1b) why put out total_reward as reward in terminal state?
+            # reward = self.total_reward #TODO: 1b) why put out total_reward as reward in terminal state?
             profit = self.total_asset / self.args.initial_balance - 1.0
             state = self.reset()
             return state, reward, True, {'profit': profit}
