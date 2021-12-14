@@ -18,11 +18,14 @@ class DJIA(Environment):
 
         # predefined constants
         # modified from https://github.com/AI4Finance-Foundation/FinRL #TODO: did not find scaling done on each b, p, r
-        self._balance_scale = 1e-4
-        self._price_scale = 1e-2
-        self._reward_scale = 1e-4
-        self._max_stocks = 100
-        self._min_action = int(0.1 * self._max_stocks)
+        # self._balance_scale = 1e-4
+        # self._price_scale = 1e-2
+        # self._reward_scale = 1e-4
+        # self._max_stocks = 100
+        # self._min_action = int(0.1 * self._max_stocks)
+        # self._min_action = 0.1
+        self._action_scale = 10.0
+        self._reward_scale = 100.0
 
         # load stock data
         prices, tickers = [], []
@@ -61,66 +64,85 @@ class DJIA(Environment):
 
     @property
     def observation_space(self):
-        return (61,)
+        return (31, 26)
 
     @property
     def action_space(self):
         # actions are assumed to be constrained to [-1.0, 1.0]
-        return (30,)
+        return (31,)
 
     def reset(self):
-        self.head = 0
+        self.head = 25
         self.balance = self.args.initial_balance
         self.holdings = np.zeros(30)
         self.total_asset = self.balance
-        self.total_reward = 0.0
+        # self.total_reward = 0.0
+        
+        # initialize lagged return matrix
+        self.lag_returns = np.zeros([31, 25]) # row 1 is cash balance, with lag returns all 0.
+        self.lag_returns[1:, :] = self.prices.iloc[self.head - 25: self.head + 1].pct_change().dropna(axis=0).T.values # assign stocks: [#stocks, #lagged returns]
+        
+        #initialize weights
+        self.weights = np.zeros(31).reshape(-1, 1) # assume sums to 1, no negative weights. shape: [#stocks, 1]
 
-        p = self.prices.iloc[self.head].values * self._price_scale
-        h = self.holdings * self._price_scale
-        b = max(self.balance, 1e4)  # cutoff value defined in FinRL
-        b *= np.ones(1) * self._balance_scale
-        return np.concatenate([p, h, b], axis=0)
+        return np.concatenate([self.lag_returns, self.weights], axis=1) # return shape [31, 26]
 
     def step(self, action):
         # rescale actions
-        action = (action * self._max_stocks).astype(int)
+        # action *= self._action_scale
 
         # update prices and holdings
         self.head += 1
         if self.head >= len(self.prices):
             raise KeyError("environment must be reset")
 
-        prices = self.prices.iloc[self.head].values
+        # Take scaled softmax of action vector: R^31 -> [0, 1]
+        exp = np.exp(action - action.max())
+        action = (exp / exp.sum())
+        
+        prices_old = self.prices.iloc[self.head - 1].values # old prices
+        prices = self.prices.iloc[self.head].values # new prices
         tc = self.args.transaction_cost
-        # sells
-        for idx in np.where(action < -self._min_action)[0]:
-            shares = min(-action[idx], self.holdings[idx])
-            self.holdings[idx] -= shares
-            self.balance += prices[idx] * shares * (1 - tc)
-        # buys
-        for idx in np.where(action > self._min_action)[0]:
-            shares = min(action[idx], self.balance // prices[idx])
-            self.holdings[idx] += shares
-            self.balance -= prices[idx] * shares * (1 + tc)
 
-        # calculate asset gains
+        # Old holdings
+        self.balance = self.total_asset * action[0] # R, first index: cash account. no batch, batches are later sampled from buffer...
+        self.holdings = (self.total_asset) * action[1:] // prices_old # R x R^30 // R^30
+
+        # Add fractional differences to balance
+        exact_holdings = (self.total_asset) * action[1:] / prices_old
+        fract_diff = (exact_holdings - self.holdings)
+        assert (fract_diff > 0).all()
+        self.balance += np.sum(fract_diff * prices_old)
+ 
+        # Subtract transaction costs
+        turnover = (action[1:] - self.weights.squeeze()[1:]) * self.total_asset
+        total_tc = np.sum(np.abs(turnover)) * tc
+        self.balance -= total_tc
+
+        # calculate asset gains with new prices
         total_asset = self.balance + (prices * self.holdings).sum()
-        reward = (total_asset - self.total_asset) * self._reward_scale
+        reward = (total_asset - self.total_asset) / (self.total_asset + 1e-8)
+        # reward *= self._reward_scale
         self.total_asset = total_asset
-        # self.total_reward = self.args.gamma * self.total_reward + reward #TODO: 1a) why do we discount total_reward here?
+        # self.total_reward = self.args.gamma * self.total_reward + reward #TODO
 
         # check if at terminal state
         if self.head == len(self.prices) - 1:
-            # reward = self.total_reward #TODO: 1b) why put out total_reward as reward in terminal state?
+            # reward = self.total_reward #TODO
             profit = self.total_asset / self.args.initial_balance - 1.0
             state = self.reset()
             return state, reward, True, {'profit': profit}
 
+
+        # Update weights (changed because of return dynamics)
+        self.weights = np.concatenate(
+            [np.array([self.balance]), prices * self.holdings]
+        ) / self.total_asset
+        self.weights = self.weights.reshape(-1, 1)
+        
         # create state vector
-        p = prices * self._price_scale
-        h = self.holdings * self._price_scale
-        b = max(self.balance, 1e4)  # cutoff value defined in FinRL
-        b *= np.ones(1) * self._balance_scale
-        state = np.concatenate([p, h, b], axis=0)
+        lag_returns = self.prices.iloc[self.head - 1: self.head + 1].pct_change().dropna(axis=0).T.values # shape: [#stocks, #lagged returns]
+        self.lag_returns[1:, :] = np.concatenate([self.lag_returns[1:, :-1], lag_returns], axis=1)
+        state = np.concatenate([self.lag_returns, self.weights], axis=1)
         return state, reward, False, {}
 
