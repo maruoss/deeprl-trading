@@ -89,7 +89,7 @@ class DJIA(Environment):
 
     def step(self, action):
         # rescale actions
-        # action *= self._action_scale
+        action *= self._action_scale
 
         # update prices and holdings
         self.head += 1
@@ -122,7 +122,7 @@ class DJIA(Environment):
         # calculate asset gains with new prices
         total_asset = self.balance + (prices * self.holdings).sum()
         reward = (total_asset - self.total_asset) / (self.total_asset + 1e-8)
-        # reward *= self._reward_scale
+        reward *= self._reward_scale
         self.total_asset = total_asset
         # self.total_reward = self.args.gamma * self.total_reward + reward #TODO
 
