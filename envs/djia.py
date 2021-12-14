@@ -111,7 +111,7 @@ class DJIA(Environment):
         # Add fractional differences to balance
         exact_holdings = (self.total_asset) * action[1:] / prices_old
         fract_diff = (exact_holdings - self.holdings)
-        assert (fract_diff > 0).all()
+        assert not (fract_diff < 0).any()
         self.balance += np.sum(fract_diff * prices_old)
  
         # Subtract transaction costs
