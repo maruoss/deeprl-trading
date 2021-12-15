@@ -14,7 +14,7 @@ class PPO(A2C):
     def __init__(self, args=None, name='PPO'):
         super().__init__(args=args, name=name)
         # intialize optimizers
-        self.optim = optim.Adam(
+        self.optim = optim.RAdam(
             self.model.parameters(),
             lr=args.lr_actor
         )

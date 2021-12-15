@@ -111,9 +111,9 @@ class MLPActorCritic(nn.Module):
         # Stack of 6 Transformer blocks as in original implementation
         self.transformer_encoder = nn.Sequential(
             TransformerBlock(d=ob_space[1]),
-            TransformerBlock(d=ob_space[1]),
-            TransformerBlock(d=ob_space[1]),
-            TransformerBlock(d=ob_space[1]),
+            # TransformerBlock(d=ob_space[1]),
+            # TransformerBlock(d=ob_space[1]),
+            # TransformerBlock(d=ob_space[1]),
             # TransformerBlock(d=ob_space[1]),
             # TransformerBlock(d=ob_space[1]),
         )
