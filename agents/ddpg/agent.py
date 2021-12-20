@@ -86,11 +86,11 @@ class DDPG(Agent):
         )
 
         # intialize optimizers
-        self.actor_optim = optim.Adam(
+        self.actor_optim = optim.RAdam(
             self.model.actor.parameters(),
             lr=args.lr_actor
         )
-        self.critic_optim = optim.Adam(
+        self.critic_optim = optim.RAdam(
             self.model.critic.parameters(),
             lr=args.lr_critic
         )
