@@ -219,3 +219,21 @@ class DDPG(Agent):
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])
+
+    @torch.no_grad()
+    def test(self):
+        self.model.eval()
+
+        # create new environment
+        env = getattr(envs, self.args.env)(args=self.args)
+        env.test()
+        state = env.reset()
+
+        # run until terminal
+        done = False
+        while not done:
+            state = torch.FloatTensor(state).to(self.args.device)
+            action = torch.tanh(self.model.actor(state.unsqueeze(0)))
+            action = action.squeeze(0).cpu().numpy()
+            state, _, done, epinfo = env.step(action)
+        return epinfo

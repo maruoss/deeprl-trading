@@ -4,11 +4,10 @@ import argparse
 import random
 import numpy as np
 import torch
+import agents
 
 
 def train(args):
-    import agents
-
     agent = getattr(agents, args.agent)(args)
     path = agent.logger.log_dir
 
@@ -28,6 +27,11 @@ def train(args):
                 agent.model.state_dict(),
                 os.path.join(path, 'model.pt')
             )
+
+
+def test(args):
+    agent = getattr(agents, args.agent)(args)
+    agent.test()
 
 
 def test_logger(args):

@@ -200,8 +200,31 @@ class A2C(Agent):
         done = False
         while not done:
             state = torch.FloatTensor(state).to(self.args.device)
-            mu, _, _ = self.model(state.unsqueeze(0)) 
+            mu, _, _ = self.model(state.unsqueeze(0))
             action = torch.tanh(mu)
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])
+
+    @torch.no_grad()
+    def test(self):
+        self.logger.log("Begin test run from {}".format(self.args.start_test))
+        self.model.eval()
+
+        # create new environment
+        env = getattr(envs, self.args.env)(args=self.args)
+        env.test()
+        state = env.reset()
+
+        # run until terminal
+        done = False
+        while not done:
+            state = torch.FloatTensor(state).to(self.args.device)
+            mu, _, _ = self.model(state.unsqueeze(0))
+            action = torch.tanh(mu)
+            action = action.squeeze(0).cpu().numpy()
+            state, _, done, epinfo = env.step(action)
+
+        # log test result
+        self.logger.log("Test run complete")
+        self.logger.log("PnL: {}".format(epinfo['profit']))
