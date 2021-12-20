@@ -222,6 +222,7 @@ class DDPG(Agent):
 
     @torch.no_grad()
     def test(self):
+        self.logger.log("Begin test run from {}".format(self.args.start_test))
         self.model.eval()
 
         # create new environment
