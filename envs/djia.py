@@ -46,17 +46,17 @@ class DJIA(Environment):
         _ = self.reset()
 
     def train(self):
-        start = datetime.strptime(self.args.start_train, "%Y-%M-%d")
-        end = datetime.strptime(self.args.start_val, "%Y-%M-%d")
+        start = datetime.strptime(self.args.start_train, "%Y-%m-%d")
+        end = datetime.strptime(self.args.start_val, "%Y-%m-%d")
         self.prices = self.all_prices[start:end - timedelta(days=1)]
 
     def eval(self):
-        start = datetime.strptime(self.args.start_val, "%Y-%M-%d")
-        end = datetime.strptime(self.args.start_test, "%Y-%M-%d")
+        start = datetime.strptime(self.args.start_val, "%Y-%m-%d")
+        end = datetime.strptime(self.args.start_test, "%Y-%m-%d")
         self.prices = self.all_prices[start:end - timedelta(days=1)]
 
     def test(self):
-        start = datetime.strptime(self.args.start_test, "%Y-%M-%d")
+        start = datetime.strptime(self.args.start_test, "%Y-%m-%d")
         self.prices = self.all_prices[start:]
 
     @property
@@ -187,10 +187,10 @@ class DJIANew(DJIA):
         reward = (total_asset - self.total_asset) / (self.total_asset + 1e-8)
         reward *= self._reward_scale
         self.total_asset = total_asset
+        profit = self.total_asset / self.args.initial_balance - 1.0
 
         # check if at terminal state
         if self.head == len(self.prices) - 1:
-            profit = self.total_asset / self.args.initial_balance - 1.0
             state = self.reset()
             return state, reward, True, {'profit': profit}
 
@@ -208,4 +208,4 @@ class DJIANew(DJIA):
             pct_change.dropna().values.T,
             self.weights.T,
         ])
-        return state, reward, False, {}
+        return state, reward, False, {'profit': profit}

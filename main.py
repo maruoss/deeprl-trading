@@ -3,6 +3,7 @@ import json
 import argparse
 import random
 import numpy as np
+import pandas as pd
 import torch
 import agents
 
@@ -31,7 +32,61 @@ def train(args):
 
 def test(args):
     agent = getattr(agents, args.agent)(args)
-    agent.test()
+    _, ckpt_name = os.path.split(args.checkpoint)
+    path = os.path.join(agent.logger.log_dir, '{}.csv'.format(ckpt_name))
+
+    # test run
+    pnl = agent.test()
+
+    # match datetime index from the environment
+    agent.env.test()
+    index = agent.env.prices.index[-len(pnl):]
+
+    # save series to csv
+    pd.Series(pnl, index=index).to_csv(path)
+
+
+def visualize(args):
+    assert os.path.isdir(args.checkpoint), "must provide directory by the checkpoint argument"
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from mpt import portfolio_return 
+
+    sns.set_style('whitegrid')
+
+    # load test data
+    dfs = []
+    for filename in os.listdir(args.checkpoint):
+        if filename.endswith('.csv'):
+            path = os.path.join(args.checkpoint, filename)
+            df = pd.read_csv(path, index_col='Date')
+            df.columns = [filename[:-4]]
+            dfs.append(df)
+    dfs = pd.concat(dfs, axis=1)
+
+    # add DJIA
+    djia = pd.read_csv('data/^DJI.csv', index_col='Date').Close
+    djia = djia[dfs.index]
+    djia = djia / djia.iloc[0] - 1.0
+    dfs['DJIA'] = djia
+
+    # add MPT benchmarks
+    dfs.index = pd.to_datetime(dfs.index)
+    benchmark = portfolio_return(args, method='max_sharpe')
+    benchmark = benchmark[dfs.index]
+    benchmark = benchmark / benchmark.iloc[0] - 1.0
+    dfs['max_sharpe'] = benchmark
+
+    benchmark = portfolio_return(args, method='min_volatility')
+    benchmark = benchmark[dfs.index]
+    benchmark = benchmark / benchmark.iloc[0] - 1.0
+    dfs['min_volatility'] = benchmark
+
+    dfs.plot(figsize=(20, 10))
+    plt.legend(loc='upper left')
+    os.makedirs('plots', exist_ok=True)
+    plt.savefig('plots/result.png')
 
 
 def test_logger(args):

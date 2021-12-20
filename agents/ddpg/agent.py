@@ -232,13 +232,15 @@ class DDPG(Agent):
 
         # run until terminal
         done = False
+        pnl = []
         while not done:
             state = torch.FloatTensor(state).to(self.args.device)
             action = torch.tanh(self.model.actor(state.unsqueeze(0)))
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
+            pnl.append(epinfo['profit'])
 
         # log test result
         self.logger.log("Test run complete")
         self.logger.log("PnL: {}".format(epinfo['profit']))
-        return epinfo
+        return pnl

@@ -84,7 +84,7 @@ class A2C(Agent):
         self.info.update('Loss/Actor', loss_actor.item())
 
         # total loss with entropy bonus
-        loss = loss_actor + self.args.cr_coef * loss_critic 
+        loss = loss_actor + self.args.cr_coef * loss_critic
         loss -= self.args.ent_coef * entropy
         return loss
 
@@ -218,13 +218,16 @@ class A2C(Agent):
 
         # run until terminal
         done = False
+        pnl = []
         while not done:
             state = torch.FloatTensor(state).to(self.args.device)
             mu, _, _ = self.model(state.unsqueeze(0))
             action = torch.tanh(mu)
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
+            pnl.append(epinfo['profit'])
 
         # log test result
         self.logger.log("Test run complete")
         self.logger.log("PnL: {}".format(epinfo['profit']))
+        return pnl
