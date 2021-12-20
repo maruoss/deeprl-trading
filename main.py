@@ -4,7 +4,6 @@ import argparse
 import random
 import numpy as np
 import torch
-from datetime import datetime
 
 
 def train(args):
@@ -86,6 +85,8 @@ if __name__ == '__main__':
 
     training = parser.add_argument_group("training configurations")
     training.add_argument("--agent", type=str.lower, default='ddpg')
+    training.add_argument("--arch", type=str.lower, default='cnn',
+                          choices=['cnn', 'transformer'])
     training.add_argument("--train_iter", type=int, default=100000000)
     training.add_argument("--eval_every", type=int, default=10000)
     training.add_argument("--update_every", type=int, default=128)

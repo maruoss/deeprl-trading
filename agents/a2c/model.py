@@ -2,110 +2,45 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import torch.nn.functional as F
-
-#based on https://colab.research.google.com/github/leox1v/dl20/blob/master/Transformers_Solution.ipynb#scrollTo=7JaF6C3Dfdog&uniqifier=2 
+from agents.transformer import TransformerBlock
 
 
-class SelfAttention(nn.Module):
-    """
-    A SelfAttention model.
-    
-    Args:
-        d: The embedding dimension.
-        heads: The number of attention heads.
-    """
-    def __init__(self, d: int, heads: int=8) -> None:   
+class CNNActorCritic(nn.Module):
+    def __init__(self, ob_space, ac_space, min_var=0.0):
         super().__init__()
-        self.h = heads
-
-        self.Wq = nn.Linear(d, d * heads, bias=False)
-        self.Wk = nn.Linear(d, d * heads, bias=False)
-        self.Wv = nn.Linear(d, d * heads, bias=False)
-
-        # Unifying outputs
-        self.unifyheads = nn.Linear(heads * d, d)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: The input embedding of shape [b, l, d]
-        
-        Returns:
-            Self attention tensor of shape [b, l, d].
-        """
-        # b = batch
-        # l = sequence length
-        # d = embedding dim.
-
-        b, l, d = x.size()
-        h = self.h
-
-        # Transform input embeddings of shape [b, l, d] to queries, keys and values.
-        # The output shape is [b, l, d*h] which we transform into [b, l, h, d]. Then,
-        # we fold the heads into the batch dimension to arrive at [b*h, l, d].
-        queries = self.Wq(x).view(b, l, h, d).transpose(1, 2).contiguous().view(b*h, l, d)
-        keys = self.Wk(x).view(b, l, h, d).transpose(1, 2).contiguous().view(b*h, l, d)
-        values = self.Wv(x).view(b, l, h, d).transpose(1, 2).contiguous().view(b*h, l, d)
-
-        # Compute raw weights of shape [b*h, l, l]
-        w_prime = torch.bmm(queries, keys.transpose(1, 2)) / np.sqrt(d)
-
-        # Compute normalized weights by normalizing last dim. 
-        # Shape: [b*h, l, l]
-        w = F.softmax(w_prime, dim=-1)
-
-        # Apply self attention to the values
-        # Shape [b, h, l, d]
-        out = torch.bmm(w, values).view(b, h, l, d)
-
-        # Swap h, l back
-        out = out.transpose(1, 2).contiguous().view(b, l, h * d)
-
-        return self.unifyheads(out)
-
-class TransformerBlock(nn.Module):
-    """
-    A Transformer block consisting of self attention and ff-layers.
-
-    Args:
-        d (int): The embedding dimension
-        heads (int): The number of attention heads
-        n_mlp (int): n_mlp * d = hidden dim of independent FFNs
-    """
-    def __init__(self, d: int, heads: int=8, n_mlp: int=4) -> None:
-        super().__init__()
-
-        # The self-attention layer
-        self.attention = SelfAttention(d=d, heads=heads)
-
-        # The two layer norms
-        self.norm1 = nn.LayerNorm(d)
-        self.norm2 = nn.LayerNorm(d)
-
-        # The feed-forward layer
-        self.ff = nn.Sequential(
-            nn.Linear(d, d * n_mlp),
+        self.features = nn.Sequential(
+            nn.Conv1d(ob_space[0], 128, 5),
             nn.ReLU(),
-            nn.Linear(d * n_mlp, d)
+            nn.Conv1d(128, 128, 5),
+            nn.ReLU(),
+            nn.Conv1d(128, 128, 5),
+            nn.ReLU(),
         )
+        sample = torch.zeros(1, *ob_space)
+        size = np.prod(self.features(sample).size())
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: The input sequence embedding of shape [b, l, d]
+        self.ac_head = nn.Linear(size, np.prod(ac_space) * 2)
+        self.ac_head.weight.data.uniform_(-3e-3, 3e-3)
+        self.ac_head.bias.data.uniform_(-3e-3, 3e-3)
 
-        Returns:
-            Transformer output tensor of shape [b, l, d]
-        """
-        out = self.attention(x)
-        out = self.norm1(out + x)
-        out = self.ff(out) + out
-        out = self.norm2(out)
+        self.val_head = nn.Linear(size, 1)
+        self.val_head.weight.data.uniform_(-3e-3, 3e-3)
+        self.val_head.bias.data.uniform_(-3e-3, 3e-3)
 
-        return out
+        self.ac_space = ac_space
+        self.min_var = min_var
 
-class MLPActorCritic(nn.Module):
+    def forward(self, obs):
+        z = self.features(obs).view(obs.size(0), -1)
+        acs = self.ac_head(z)
+        mus = acs[:, :np.prod(self.ac_space)].view(-1, *self.ac_space)
+        sigs = acs[:, np.prod(self.ac_space):].view(-1, *self.ac_space)
+        sigs = torch.sqrt(F.softplus(sigs) + self.min_var)
+        vals = self.val_head(z)
+        return mus, sigs, vals
+
+
+class TransformerActorCritic(nn.Module):
     def __init__(self, ob_space, ac_space, min_var=0.0):
         super().__init__()
         # Stack of 6 Transformer blocks as in original implementation
@@ -117,7 +52,6 @@ class MLPActorCritic(nn.Module):
             # TransformerBlock(d=ob_space[1]),
             # TransformerBlock(d=ob_space[1]),
         )
-
         self.ac_head = nn.Linear(ob_space[1], np.prod(ac_space) * 2)
         self.ac_head.weight.data.uniform_(-3e-3, 3e-3)
         self.ac_head.bias.data.uniform_(-3e-3, 3e-3)

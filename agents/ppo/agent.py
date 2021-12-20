@@ -1,10 +1,4 @@
-import time
-from utils.logger import Logger
-from utils.summary import EvaluationMetrics
-import envs
-import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Normal
 from agents.a2c.agent import A2C
@@ -14,7 +8,7 @@ class PPO(A2C):
     def __init__(self, args=None, name='PPO'):
         super().__init__(args=args, name=name)
         # intialize optimizers
-        self.optim = optim.RAdam(
+        self.optim = optim.Adam(
             self.model.parameters(),
             lr=args.lr_actor
         )
@@ -54,6 +48,6 @@ class PPO(A2C):
         self.info.update('Loss/Actor', loss_actor.item())
 
         # total loss with entropy bonus
-        loss = loss_actor + self.args.cr_coef * loss_critic 
+        loss = loss_actor + self.args.cr_coef * loss_critic
         loss -= self.args.ent_coef * entropy
         return loss

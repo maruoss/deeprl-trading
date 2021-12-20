@@ -7,18 +7,28 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Normal
 from agents.base import Agent
-from agents.a2c.model import MLPActorCritic
+from agents.a2c.model import CNNActorCritic
+from agents.a2c.model import TransformerActorCritic
 
 
 class A2C(Agent):
     def __init__(self, args=None, name='A2C'):
         super().__init__(args=args, name=name)
         # initialize models
-        self.model = MLPActorCritic(
-            self.env.observation_space,
-            self.env.action_space,
-            min_var=args.sigma
-        )
+        if args.arch == 'cnn':
+            self.model = CNNActorCritic(
+                self.env.observation_space,
+                self.env.action_space,
+                min_var=args.sigma
+            )
+        elif args.arch == 'transformer':
+            self.model = TransformerActorCritic(
+                self.env.observation_space,
+                self.env.action_space,
+                min_var=args.sigma
+            )
+        else:
+            raise NotImplementedError
         self.model.to(args.device)
 
         # initialize buffer

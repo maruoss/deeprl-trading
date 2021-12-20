@@ -9,7 +9,8 @@ import torch.nn as nn
 import torch.optim as optim
 from agents.base import Agent
 from agents.ddpg.buffer import ReplayBuffer
-from agents.ddpg.model import MLPActor, MLPCritic
+from agents.ddpg.model import CNNActor, CNNCritic
+from agents.ddpg.model import TransformerActor, TransformerCritic
 
 
 class OrnsteinUhlenbeck:
@@ -37,16 +38,30 @@ class DDPG(Agent):
     def __init__(self, args=None, name='DDPG'):
         super().__init__(args=args, name=name)
         # initialize models
-        self.model = nn.ModuleDict({
-            'actor': MLPActor(
-                self.env.observation_space,
-                self.env.action_space,
-            ),
-            'critic': MLPCritic(
-                self.env.observation_space,
-                self.env.action_space,
-            )
-        })
+        if args.arch == 'cnn':
+            self.model = nn.ModuleDict({
+                'actor': CNNActor(
+                    self.env.observation_space,
+                    self.env.action_space,
+                ),
+                'critic': CNNCritic(
+                    self.env.observation_space,
+                    self.env.action_space,
+                )
+            })
+        elif args.arch == 'transformer':
+            self.model = nn.ModuleDict({
+                'actor': TransformerActor(
+                    self.env.observation_space,
+                    self.env.action_space,
+                ),
+                'critic': TransformerCritic(
+                    self.env.observation_space,
+                    self.env.action_space,
+                )
+            })
+        else:
+            raise NotImplementedError
         self.target = deepcopy(self.model)
         self.model.to(args.device)
         self.target.to(args.device)
