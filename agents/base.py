@@ -9,7 +9,7 @@ class Agent(ABC):
 
         # initialize logger
         self.logger = Logger(name, args)
-        self.logger.log("Initialized {} agent for {}".format(name, args.env))
+        self.logger.log("Initialized {} agent for {}, using {} architecture".format(name, args.env, args.arch))
 
         # initialize environment
         self.env = getattr(envs, args.env)(args=args)

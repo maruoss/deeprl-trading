@@ -1,6 +1,5 @@
 import time
 from copy import deepcopy
-from utils.logger import Logger
 from utils.summary import EvaluationMetrics
 import envs
 import numpy as np
@@ -9,7 +8,8 @@ import torch.nn as nn
 import torch.optim as optim
 from agents.base import Agent
 from agents.ddpg.buffer import ReplayBuffer
-from agents.ddpg.model import MLPActor, MLPCritic
+from agents.ddpg.model import CNNActor, CNNCritic
+from agents.ddpg.model import TransformerActor, TransformerCritic
 
 
 class OrnsteinUhlenbeck:
@@ -37,16 +37,36 @@ class DDPG(Agent):
     def __init__(self, args=None, name='DDPG'):
         super().__init__(args=args, name=name)
         # initialize models
-        self.model = nn.ModuleDict({
-            'actor': MLPActor(
-                self.env.observation_space,
-                self.env.action_space,
-            ),
-            'critic': MLPCritic(
-                self.env.observation_space,
-                self.env.action_space,
-            )
-        })
+        if args.arch == 'cnn':
+            self.model = nn.ModuleDict({
+                'actor': CNNActor(
+                    self.env.observation_space,
+                    self.env.action_space,
+                ),
+                'critic': CNNCritic(
+                    self.env.observation_space,
+                    self.env.action_space,
+                )
+            })
+        elif args.arch == 'transformer':
+            self.model = nn.ModuleDict({
+                'actor': TransformerActor(
+                    self.env.observation_space,
+                    self.env.action_space,
+                ),
+                'critic': TransformerCritic(
+                    self.env.observation_space,
+                    self.env.action_space,
+                )
+            })
+        else:
+            raise NotImplementedError
+
+        # load checkpoint if available
+        if args.checkpoint is not None:
+            self.logger.log(
+                "Loading model checkpoint from {}".format(args.checkpoint))
+            self.model.load_state_dict(torch.load(args.checkpoint))
         self.target = deepcopy(self.model)
         self.model.to(args.device)
         self.target.to(args.device)
@@ -66,11 +86,11 @@ class DDPG(Agent):
         )
 
         # intialize optimizers
-        self.actor_optim = optim.Adam(
+        self.actor_optim = optim.RAdam(
             self.model.actor.parameters(),
             lr=args.lr_actor
         )
-        self.critic_optim = optim.Adam(
+        self.critic_optim = optim.RAdam(
             self.model.critic.parameters(),
             lr=args.lr_critic
         )
@@ -199,3 +219,26 @@ class DDPG(Agent):
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])
+
+    @torch.no_grad()
+    def test(self):
+        self.logger.log("Begin test run from {}".format(self.args.start_test))
+        self.model.eval()
+
+        # create new environment
+        env = getattr(envs, self.args.env)(args=self.args)
+        env.test()
+        state = env.reset()
+
+        # run until terminal
+        done = False
+        while not done:
+            state = torch.FloatTensor(state).to(self.args.device)
+            action = torch.tanh(self.model.actor(state.unsqueeze(0)))
+            action = action.squeeze(0).cpu().numpy()
+            state, _, done, epinfo = env.step(action)
+
+        # log test result
+        self.logger.log("Test run complete")
+        self.logger.log("PnL: {}".format(epinfo['profit']))
+        return epinfo

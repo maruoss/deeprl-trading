@@ -7,18 +7,34 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Normal
 from agents.base import Agent
-from agents.a2c.model import MLPActorCritic
+from agents.a2c.model import CNNActorCritic
+from agents.a2c.model import TransformerActorCritic
 
 
 class A2C(Agent):
     def __init__(self, args=None, name='A2C'):
         super().__init__(args=args, name=name)
         # initialize models
-        self.model = MLPActorCritic(
-            self.env.observation_space,
-            self.env.action_space,
-            min_var=args.sigma
-        )
+        if args.arch == 'cnn':
+            self.model = CNNActorCritic(
+                self.env.observation_space,
+                self.env.action_space,
+                min_var=args.sigma
+            )
+        elif args.arch == 'transformer':
+            self.model = TransformerActorCritic(
+                self.env.observation_space,
+                self.env.action_space,
+                min_var=args.sigma
+            )
+        else:
+            raise NotImplementedError
+
+        # load checkpoint if available
+        if args.checkpoint is not None:
+            self.logger.log(
+                "Loading model checkpoint from {}".format(args.checkpoint))
+            self.model.load_state_dict(torch.load(args.checkpoint))
         self.model.to(args.device)
 
         # initialize buffer
@@ -184,8 +200,31 @@ class A2C(Agent):
         done = False
         while not done:
             state = torch.FloatTensor(state).to(self.args.device)
-            mu, _, _ = self.model(state.unsqueeze(0)) 
+            mu, _, _ = self.model(state.unsqueeze(0))
             action = torch.tanh(mu)
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])
+
+    @torch.no_grad()
+    def test(self):
+        self.logger.log("Begin test run from {}".format(self.args.start_test))
+        self.model.eval()
+
+        # create new environment
+        env = getattr(envs, self.args.env)(args=self.args)
+        env.test()
+        state = env.reset()
+
+        # run until terminal
+        done = False
+        while not done:
+            state = torch.FloatTensor(state).to(self.args.device)
+            mu, _, _ = self.model(state.unsqueeze(0))
+            action = torch.tanh(mu)
+            action = action.squeeze(0).cpu().numpy()
+            state, _, done, epinfo = env.step(action)
+
+        # log test result
+        self.logger.log("Test run complete")
+        self.logger.log("PnL: {}".format(epinfo['profit']))

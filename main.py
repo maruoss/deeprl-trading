@@ -4,12 +4,10 @@ import argparse
 import random
 import numpy as np
 import torch
-from datetime import datetime
+import agents
 
 
 def train(args):
-    import agents
-
     agent = getattr(agents, args.agent)(args)
     path = agent.logger.log_dir
 
@@ -29,6 +27,11 @@ def train(args):
                 agent.model.state_dict(),
                 os.path.join(path, 'model.pt')
             )
+
+
+def test(args):
+    agent = getattr(agents, args.agent)(args)
+    agent.test()
 
 
 def test_logger(args):
@@ -77,7 +80,7 @@ if __name__ == '__main__':
     dirs.add_argument("--checkpoint", type=str, default=None)
 
     env = parser.add_argument_group("environment configurations")
-    env.add_argument("--env", type=str.lower, default='djia')
+    env.add_argument("--env", type=str.lower, default='djia_new')
     env.add_argument("--start_train", type=str, default="2009-01-01")
     env.add_argument("--start_val", type=str, default="2018-12-01")
     env.add_argument("--start_test", type=str, default="2019-12-01")
@@ -86,6 +89,8 @@ if __name__ == '__main__':
 
     training = parser.add_argument_group("training configurations")
     training.add_argument("--agent", type=str.lower, default='ddpg')
+    training.add_argument("--arch", type=str.lower, default='cnn',
+                          choices=['cnn', 'transformer'])
     training.add_argument("--train_iter", type=int, default=100000000)
     training.add_argument("--eval_every", type=int, default=10000)
     training.add_argument("--update_every", type=int, default=128)
