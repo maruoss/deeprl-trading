@@ -1,6 +1,5 @@
 import time
 from copy import deepcopy
-from utils.logger import Logger
 from utils.summary import EvaluationMetrics
 import envs
 import numpy as np
@@ -62,6 +61,12 @@ class DDPG(Agent):
             })
         else:
             raise NotImplementedError
+
+        # load checkpoint if available
+        if args.checkpoint is not None:
+            self.logger.log(
+                "Loading model checkpoint from {}".format(args.checkpoint))
+            self.model.load_state_dict(torch.load(args.checkpoint))
         self.target = deepcopy(self.model)
         self.model.to(args.device)
         self.target.to(args.device)

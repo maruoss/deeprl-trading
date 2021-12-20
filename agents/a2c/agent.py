@@ -29,6 +29,12 @@ class A2C(Agent):
             )
         else:
             raise NotImplementedError
+
+        # load checkpoint if available
+        if args.checkpoint is not None:
+            self.logger.log(
+                "Loading model checkpoint from {}".format(args.checkpoint))
+            self.model.load_state_dict(torch.load(args.checkpoint))
         self.model.to(args.device)
 
         # initialize buffer
