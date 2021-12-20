@@ -4,12 +4,10 @@ import argparse
 import random
 import numpy as np
 import torch
-from datetime import datetime
+import agents
 
 
 def train(args):
-    import agents
-
     agent = getattr(agents, args.agent)(args)
     path = agent.logger.log_dir
 
@@ -29,6 +27,11 @@ def train(args):
                 agent.model.state_dict(),
                 os.path.join(path, 'model.pt')
             )
+
+
+def test(args):
+    agent = getattr(agents, args.agent)(args)
+    agent.test()
 
 
 def test_logger(args):
@@ -77,7 +80,7 @@ if __name__ == '__main__':
     dirs.add_argument("--checkpoint", type=str, default=None)
 
     env = parser.add_argument_group("environment configurations")
-    env.add_argument("--env", type=str.lower, default='djia')
+    env.add_argument("--env", type=str.lower, default='djia_new')
     env.add_argument("--start_train", type=str, default="2009-01-01")
     env.add_argument("--start_val", type=str, default="2018-12-01")
     env.add_argument("--start_test", type=str, default="2019-12-01")
@@ -86,15 +89,17 @@ if __name__ == '__main__':
 
     training = parser.add_argument_group("training configurations")
     training.add_argument("--agent", type=str.lower, default='ddpg')
-    training.add_argument("--train_iter", type=int, default=10000000)
+    training.add_argument("--arch", type=str.lower, default='cnn',
+                          choices=['cnn', 'transformer'])
+    training.add_argument("--train_iter", type=int, default=100000000)
     training.add_argument("--eval_every", type=int, default=10000)
-    training.add_argument("--update_every", type=int, default=1024)
+    training.add_argument("--update_every", type=int, default=128)
     training.add_argument("--update_epoch", type=int, default=4)
     training.add_argument("--buffer_size", type=int, default=50000)
     training.add_argument("--warmup", type=int, default=1000)
-    training.add_argument("--batch_size", type=int, default=128)
+    training.add_argument("--batch_size", type=int, default=32)
 
-    training.add_argument("--lr_critic", type=float, default=1e-3)
+    training.add_argument("--lr_critic", type=float, default=1e-4)
     training.add_argument('-lr', "--lr_actor", type=float, default=1e-4)
     training.add_argument("--grad_clip", type=float, default=0.5)
     training.add_argument("--sigma", type=float, default=0.1)
@@ -102,7 +107,7 @@ if __name__ == '__main__':
     training.add_argument("--lambda", type=float, default=0.95)
     training.add_argument("--polyak", type=float, default=0.99)
     training.add_argument("--cr_coef", type=float, default=0.5)
-    training.add_argument("--ent_coef", type=float, default=1e-3)
+    training.add_argument("--ent_coef", type=float, default=0.0)
     training.add_argument("--cliprange", type=float, default=0.1)
 
     args = parser.parse_args()
