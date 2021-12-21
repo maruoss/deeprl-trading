@@ -137,7 +137,7 @@ if __name__ == '__main__':
     env = parser.add_argument_group("environment configurations")
     env.add_argument("--env", type=str.lower, default='djia_new')
     env.add_argument("--start_train", type=str, default="2009-01-01")
-    env.add_argument("--start_val", type=str, default="2018-12-01")
+    env.add_argument("--start_val", type=str, default="2018-01-01")
     env.add_argument("--start_test", type=str, default="2019-12-01")
     env.add_argument("--initial_balance", type=float, default=1e6)
     env.add_argument("--transaction_cost", type=float, default=1e-3)
