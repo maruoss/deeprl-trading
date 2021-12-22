@@ -60,6 +60,9 @@ class A2C(Agent):
             'Scores/Val',
         ])
         self.step = 0
+        
+        # Current eval score for checkpointing max score
+        self.eval_score =  0.
 
     def compute_loss(self, idx):
         states = self.buffer['states'][idx]
@@ -205,6 +208,8 @@ class A2C(Agent):
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])
+
+        self.eval_score = epinfo['profit']
 
     @torch.no_grad()
     def test(self):
