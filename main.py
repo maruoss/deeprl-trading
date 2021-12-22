@@ -28,6 +28,17 @@ def train(args):
                 agent.model.state_dict(),
                 os.path.join(path, 'model.pt')
             )
+        
+        # save best model after burnin-period
+        if idx > args.save_max_after:
+            max_eval = float('-inf')
+            if agent.eval_score > max_eval:
+                torch.save(
+                agent.model.state_dict(),
+                os.path.join(path, 'best_model.pt')
+                )
+                max_eval = agent.eval_score
+
 
 
 def test(args):
@@ -126,6 +137,7 @@ if __name__ == '__main__':
     log.add_argument("--log_level", type=int, default=20)
     log.add_argument("--log_step", type=int, default=10000)
     log.add_argument("--save_step", type=int, default=1000000)
+    log.add_argument("--save_max_after", type=int, default=500000)
     log.add_argument("--debug", "-d", action="store_true")
     log.add_argument("--quiet", "-q", action="store_true")
 

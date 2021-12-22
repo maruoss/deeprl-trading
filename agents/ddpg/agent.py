@@ -107,6 +107,9 @@ class DDPG(Agent):
         ])
         self.step = 0
 
+        # Current eval score for checkpointing max score
+        self.eval_score =  0.
+
     def update_target(self):
         tau = self.args.polyak
         # update actor params
@@ -219,6 +222,7 @@ class DDPG(Agent):
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
         self.info.update('Scores/Val', epinfo['profit'])
+        self.eval_score = epinfo['profit']
 
     @torch.no_grad()
     def test(self):
