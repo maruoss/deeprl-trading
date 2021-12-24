@@ -11,6 +11,7 @@ import agents
 def train(args):
     agent = getattr(agents, args.agent)(args)
     path = agent.logger.log_dir
+    max_eval = float('-inf')
 
     # save current config to log directory
     with open(os.path.join(path, 'config.json'), 'w') as f:
@@ -31,7 +32,6 @@ def train(args):
         
         # save best model after burnin-period
         if idx > args.save_max_after:
-            max_eval = float('-inf')
             if agent.eval_score > max_eval:
                 torch.save(
                 agent.model.state_dict(),
