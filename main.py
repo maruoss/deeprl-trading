@@ -1,4 +1,4 @@
-import os
+import os, glob
 import json
 import argparse
 import random
@@ -33,9 +33,11 @@ def train(args):
         # save best model after burnin-period
         if idx > args.save_max_after:
             if agent.eval_score > max_eval:
+                for filename in glob.glob(os.path.join(path, 'best_model*')):
+                    os.remove(filename)
                 torch.save(
                 agent.model.state_dict(),
-                os.path.join(path, 'best_model.pt')
+                os.path.join(path, f'best_model_{idx}.pt')
                 )
                 max_eval = agent.eval_score
 
