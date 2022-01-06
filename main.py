@@ -47,16 +47,23 @@ def test(args):
     agent = getattr(agents, args.agent)(args)
     _, ckpt_name = os.path.split(args.checkpoint)
     path = os.path.join(agent.logger.log_dir, '{}.csv'.format(ckpt_name))
+    path_returns = os.path.join(agent.logger.log_dir, '{}_returns.csv'.format(ckpt_name))
 
     # test run
-    pnl = agent.test()
-
+    pnl, returns = agent.test()
+    
+    # pnl
     # match datetime index from the environment
     agent.env.test()
     index = agent.env.prices.index[-len(pnl):]
-
     # save series to csv
     pd.Series(pnl, index=index).to_csv(path)
+
+    # returns
+    # match datetime index from the environment
+    index = agent.env.prices.index[-len(pnl):]
+    # save series to csv
+    pd.Series(returns, index=index).to_csv(path_returns)
 
 
 def visualize(args):
@@ -100,6 +107,115 @@ def visualize(args):
     plt.legend(loc='upper left')
     os.makedirs('plots', exist_ok=True)
     plt.savefig('plots/result.png')
+
+
+def performance(args):
+    assert os.path.isdir(args.checkpoint), "must provide directory by the checkpoint argument"
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from mpt import portfolio_return 
+    import quantstats as qs
+    from datetime import timedelta
+    import dataframe_image as dfi
+    from datetime import datetime
+
+    sns.set_style('whitegrid')
+
+    # load test data
+    dfs = []
+    for filename in os.listdir(args.checkpoint):
+        if filename.endswith('_returns.csv'):
+            path = os.path.join(args.checkpoint, filename)
+            df = pd.read_csv(path, index_col='Date')
+            df.columns = [filename[:-4]]
+            dfs.append(df)
+    dfs = pd.concat(dfs, axis=1)
+
+    # add one day at the start for returns of DJIA and MPT to be of same length
+    dfs.index = pd.to_datetime(dfs.index)
+    dfs_idx = dfs.index.copy()
+    dfs_idx = dfs_idx.insert(0, dfs_idx[0] - timedelta(days=1))
+   
+    # add DJIA prices
+    djia = pd.read_csv('data/^DJI.csv', index_col='Date').Close
+    djia.index = pd.to_datetime(djia.index)
+    djia = djia[dfs_idx]
+    # calculate returns
+    djia = djia.iloc[1:] / djia.iloc[:-1].values - 1.0 
+    dfs['DJIA'] = djia
+
+    # add MPT benchmark values
+    benchmark = portfolio_return(args, method='max_sharpe')
+    benchmark = benchmark[dfs_idx]
+    benchmark = benchmark.iloc[1:] / benchmark.iloc[:-1].values - 1.0
+    dfs['max_sharpe'] = benchmark
+
+    benchmark = portfolio_return(args, method='min_volatility')
+    benchmark = benchmark[dfs_idx]
+    benchmark = benchmark.iloc[1:] / benchmark.iloc[:-1].values - 1.0
+    dfs['min_volatility'] = benchmark
+
+
+    dfs_cumprod = (1. + dfs).cumprod()
+    dfs_cumprod.plot(figsize=(20, 10))
+    plt.legend(loc='upper left')
+    path = os.path.join("results", args.tag, datetime.now().strftime("%Y%m%d%H%M%S"))
+    os.makedirs(path, exist_ok=True)
+    plt.savefig(os.path.join(path, "plot.png"))
+
+    # calculate key performance statistics
+    perfstats = []
+    periods = 252 # assuming we have daily (excess) returns (as rf assumed 0.)
+
+    cumr = qs.stats.comp(dfs).rename("Cumulative Return")
+    cumr = cumr.apply(lambda x: f'{x: .2%}')
+    cagr = qs.stats.cagr(dfs).rename("CAGR") # assumes rf = 0
+    cagr = cagr.apply(lambda x: f'{x: .2%}')
+    vol = qs.stats.volatility(dfs, periods=periods).rename("Volatility (ann.)") # daily to annualized vol.
+    vol = vol.apply(lambda x: f'{x: .2%}')
+    sharpe = qs.stats.sharpe(dfs).rename("Sharpe Ratio")
+    sharpe = sharpe.apply(lambda x: f'{x: .2f}')
+    maxdd = qs.stats.max_drawdown(dfs).rename("Max Drawdown")
+    maxdd = maxdd.apply(lambda x: f'{x: .2%}')
+    dd_days = []
+    for columname in dfs.columns:
+        dd_days.append(qs.stats.drawdown_details(qs.stats.to_drawdown_series(dfs))[columname].sort_values(by="max drawdown", ascending=True)["days"].iloc[0])
+    dd_days = pd.Series(dd_days, index=dfs.columns, name="Longest DD days")
+    dd_days = dd_days.apply(lambda x: f'{x: .0f}')
+    calmar = qs.stats.calmar(dfs).rename("Calmar Ratio")
+    calmar = calmar.apply(lambda x: f'{x: .2f}')
+    skew = qs.stats.skew(dfs).rename("Skewness")
+    skew = skew.apply(lambda x: f'{x: .2f}')
+    kurt = qs.stats.kurtosis(dfs).rename("Kurtosis")
+    kurt = kurt.apply(lambda x: f'{x: .2f}')
+
+    # calculate alpha, betas
+    X = np.array([np.ones_like(dfs.DJIA), dfs.DJIA]).T
+    alphabeta = np.linalg.inv(X.T@X)@X.T@dfs
+    alpha = alphabeta.iloc[0, :] * periods
+    beta = alphabeta.iloc[1, :]
+    alpha = alpha.rename("Alpha")
+    beta = beta.rename("Beta")
+    alpha = alpha.apply(lambda x: f'{x: .2f}')
+    beta = beta.apply(lambda x: f'{x: .2f}')
+
+    #append more stats first here...
+
+    perfstats += [cumr, cagr, vol, sharpe, maxdd, dd_days, calmar, skew, kurt, alpha, beta] # then here.
+        
+    # save results
+    perfstats = pd.concat(perfstats, axis=1)
+    perfstats.to_csv(os.path.join(path, "perfstats.csv"))    
+    dfi.export(perfstats, os.path.join(path, "perfstats.png"))
+
+    # export latex code for table
+    with open(os.path.join(path, "latex.txt"), "w") as text_file:
+        text_file.write(perfstats.to_latex(float_format="%.2f"))
+        text_file.write("\n")
+        text_file.write("% Same table transposed:\n")
+        text_file.write("\n")
+        text_file.write(perfstats.T.to_latex(float_format="%.2f"))
 
 
 def test_logger(args):
