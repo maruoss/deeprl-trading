@@ -192,7 +192,7 @@ class DJIANew(DJIA):
         # check if at terminal state
         if self.head == len(self.prices) - 1:
             state = self.reset()
-            return state, reward, True, {'profit': profit}
+            return state, reward, True, {'profit': profit, "return": reward / self._reward_scale}
 
         # create state vector
         weights = np.concatenate([
@@ -208,4 +208,4 @@ class DJIANew(DJIA):
             pct_change.dropna().values.T,
             self.weights.T,
         ])
-        return state, reward, False, {'profit': profit}
+        return state, reward, False, {'profit': profit, "return": reward / self._reward_scale}

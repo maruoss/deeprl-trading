@@ -224,6 +224,7 @@ class A2C(Agent):
         # run until terminal
         done = False
         pnl = []
+        returns = []
         while not done:
             state = torch.FloatTensor(state).to(self.args.device)
             mu, _, _ = self.model(state.unsqueeze(0))
@@ -231,8 +232,9 @@ class A2C(Agent):
             action = action.squeeze(0).cpu().numpy()
             state, _, done, epinfo = env.step(action)
             pnl.append(epinfo['profit'])
+            returns.append(epinfo['return'])
 
         # log test result
         self.logger.log("Test run complete")
         self.logger.log("PnL: {}".format(epinfo['profit']))
-        return pnl
+        return pnl, returns
