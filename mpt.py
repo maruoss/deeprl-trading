@@ -33,7 +33,7 @@ def portfolio_return(args, method='max_sharpe'):
     wallet = {}
     net_values = {}
 
-    start_idx = data.index.tolist().index(data[start_date:].index[0])
+    start_idx = data.index.tolist().index(data[start_date:].index[0]) + 27 # align trading days with RL (DJIANew uses past 25 days as lookback)
     for idx in range(start_idx, len(data)):
         _data = data.iloc[idx - lookback:idx]
         exp_return = mean_historical_return(_data, frequency=lookback)
