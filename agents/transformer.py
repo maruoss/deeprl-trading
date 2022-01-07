@@ -6,13 +6,6 @@ import torch.nn.functional as F
 # based on https://colab.research.google.com/github/leox1v/dl20/blob/master/Transformers_Solution.ipynb#scrollTo=7JaF6C3Dfdog&uniqifier=2 
 
 class SelfAttention(nn.Module):
-    """
-    A SelfAttention model.
-
-    Args:
-        d: The embedding dimension.
-        heads: The number of attention heads.
-    """
     def __init__(self, d: int, heads: int=8) -> None:   
         super().__init__()
         self.h = heads
