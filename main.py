@@ -109,6 +109,30 @@ def visualize(args):
     plt.savefig('plots/result.png')
 
 
+def average_seeds(args):
+    assert os.path.isdir(args.checkpoint), "must provide directory by the checkpoint argument"
+
+    from datetime import datetime
+
+    # load test data
+    dfs = []
+    for filename in os.listdir(args.checkpoint):
+        if filename.endswith('_returns.csv'):
+            path = os.path.join(args.checkpoint, filename)
+            df = pd.read_csv(path, index_col='Date')
+            df.columns = [filename[:-4]]
+            dfs.append(df)
+    
+    assert len(dfs) == 3 , "Three '_returns.csv' files have to be provided in the checkpoint folder."
+    df_avg = pd.concat(dfs, axis=1).mean(axis=1)
+
+    # save average returns
+    path = os.path.join(args.checkpoint, "avg_returns", datetime.now().strftime("%Y%m%d%H%M%S"))
+    os.makedirs(path, exist_ok=True)
+    path = os.path.join(path, '{}_returns.csv'.format(args.tag))
+    df_avg.to_csv(path)
+
+
 def performance(args):
     assert os.path.isdir(args.checkpoint), "must provide directory by the checkpoint argument"
 
@@ -125,7 +149,7 @@ def performance(args):
     # load test data
     dfs = []
     for filename in os.listdir(args.checkpoint):
-        if filename.endswith('_returns.csv'):
+        if filename.endswith('.csv'):
             path = os.path.join(args.checkpoint, filename)
             df = pd.read_csv(path, index_col='Date')
             df.columns = [filename[:-4]]
@@ -147,16 +171,18 @@ def performance(args):
 
     # add MPT benchmark values
     benchmark = portfolio_return(args, method='max_sharpe')
-    benchmark = benchmark[dfs_idx]
+    benchmark = pd.concat([pd.Series(args.initial_balance, index=[dfs_idx[0]]), benchmark]) # concat initial balance in first row
+    assert (benchmark.index == dfs_idx).all(), "Index of 'dfs' and 'benchmark' are not aligned"
     benchmark = benchmark.iloc[1:] / benchmark.iloc[:-1].values - 1.0
     dfs['max_sharpe'] = benchmark
 
     benchmark = portfolio_return(args, method='min_volatility')
-    benchmark = benchmark[dfs_idx]
+    benchmark = pd.concat([pd.Series(args.initial_balance, index=[dfs_idx[0]]), benchmark]) # concat initial balance in first row
+    assert (benchmark.index == dfs_idx).all(), "Index of 'dfs' and 'benchmark' are not aligned"
     benchmark = benchmark.iloc[1:] / benchmark.iloc[:-1].values - 1.0
     dfs['min_volatility'] = benchmark
 
-
+    # plot equity line
     dfs_cumprod = (1. + dfs).cumprod()
     dfs_cumprod.plot(figsize=(20, 10))
     plt.legend(loc='upper left')
