@@ -207,7 +207,7 @@ def performance(args):
     dd_days = []
     for columname in dfs.columns:
         dd_days.append(qs.stats.drawdown_details(qs.stats.to_drawdown_series(dfs))[columname].sort_values(by="max drawdown", ascending=True)["days"].iloc[0])
-    dd_days = pd.Series(dd_days, index=dfs.columns, name="Longest DD days")
+    dd_days = pd.Series(dd_days, index=dfs.columns, name="Max DD days")
     dd_days = dd_days.apply(lambda x: f'{x: .0f}')
     calmar = qs.stats.calmar(dfs).rename("Calmar Ratio")
     calmar = calmar.apply(lambda x: f'{x: .2f}')
