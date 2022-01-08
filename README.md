@@ -12,7 +12,7 @@ This repo contains the code for the paper "Deep Reinforcement Learning applied t
 To run our code, please install the following dependencies in a [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/download.html) environment:
 
 
-```bash
+```
 conda env create -f environment.yml 
 ```
 
