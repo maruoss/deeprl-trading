@@ -91,13 +91,6 @@ def visualize(args):
     djia = djia / djia.iloc[0] - 1.0
     dfs['DJIA'] = djia
 
-    # add MPT benchmarks
-    dfs.index = pd.to_datetime(dfs.index)
-    benchmark = portfolio_return(args, method='max_sharpe')
-    benchmark = benchmark[dfs.index]
-    benchmark = benchmark / benchmark.iloc[0] - 1.0
-    dfs['max_sharpe'] = benchmark
-
     benchmark = portfolio_return(args, method='min_volatility')
     benchmark = benchmark[dfs.index]
     benchmark = benchmark / benchmark.iloc[0] - 1.0
@@ -169,13 +162,6 @@ def performance(args):
     # calculate returns
     djia = djia.iloc[1:] / djia.iloc[:-1].values - 1.0 
     dfs['DJIA'] = djia
-
-    # add MPT benchmark values
-    benchmark = portfolio_return(args, method='max_sharpe')
-    benchmark = pd.concat([pd.Series(args.initial_balance, index=[dfs_idx[0]]), benchmark]) # concat initial balance in first row
-    assert (benchmark.index == dfs_idx).all(), "Index of 'dfs' and 'benchmark' are not aligned"
-    benchmark = benchmark.iloc[1:] / benchmark.iloc[:-1].values - 1.0
-    dfs['Max Sharpe'] = benchmark
 
     benchmark = portfolio_return(args, method='min_volatility')
     benchmark = pd.concat([pd.Series(args.initial_balance, index=[dfs_idx[0]]), benchmark]) # concat initial balance in first row
