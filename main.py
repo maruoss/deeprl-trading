@@ -145,6 +145,7 @@ def performance(args):
     from datetime import datetime
 
     sns.set_style('whitegrid')
+    sns.set_context('paper', font_scale=2.0) # set fontsize scaling for labels, axis, legend, automatically moves legend
 
     # load test data
     dfs = []
@@ -184,8 +185,8 @@ def performance(args):
 
     # plot equity line
     dfs_cumprod = (1. + dfs).cumprod()
-    dfs_cumprod.plot(figsize=(20, 10))
-    plt.legend(loc='upper left')
+    dfs_cumprod.plot(figsize=(15, 10), alpha=1.0, linewidth=2.5, ylabel="Portfolio Value")
+    plt.tight_layout() # remove whitespace around plot
     path = os.path.join("results", args.tag, datetime.now().strftime("%Y%m%d%H%M%S"))
     os.makedirs(path, exist_ok=True)
     plt.savefig(os.path.join(path, "plot.png"))
