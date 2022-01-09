@@ -5,7 +5,7 @@ from datetime import datetime
 import traceback
 import logging
 from termcolor import colored
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import csv
 
 # Logging levels
