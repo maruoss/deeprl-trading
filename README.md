@@ -51,7 +51,7 @@ python main.py performance --checkpoint [path to folder with all six .csv files 
 7) Done! Enjoy a beautiful plot and performance statistics saved in a ```.csv```, a```.png``` and as LaTeX code in a ```.txt``` file in the automatically created folder ```results``` on the project directory level.
 
 ---
-## Reproducing our results from scratch:
+## Reproduce our results from scratch:
 To reproduce our results from scratch run the following commands in your terminal with the environment activated:
 
 
